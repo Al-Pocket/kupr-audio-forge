@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KUPR — Audio Forge</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+
+        :root {
+            --bg: #0a0a0f;
+            --panel: #11111a;
+            --border: #1e1e30;
+            --accent: #00ffaa;
+            --accent2: #ff3366;
+            --accent3: #7b5ea7;
+            --text: #c8c8e0;
+            --dim: #44445a;
+            --glow: 0 0 18px #00ffaa55;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse at 10% 20%, #7b5ea720 0%, transparent 50%),
+                radial-gradient(ellipse at 90% 80%, #00ffaa10 0%, transparent 50%);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 18px 28px 14px;
+            border-bottom: 1px solid var(--border);
+            background: #0d0d18cc;
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 4px;
+            color: var(--accent);
+            text-shadow: var(--glow);
+        }
+
+        .logo span { color: var(--accent2); }
+
+        .tagline {
+            font-size: 0.65rem;
+            color: var(--dim);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--dim);
+            margin-left: auto;
+            transition: background 0.3s;
+            box-shadow: none;
+        }
+
+        .status-dot.active {
+            background: var(--accent);
+            box-shadow: var(--glow);
+            animation: blink 1.4s infinite;
+        }
+
+        @keyframes blink {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            grid-template-rows: auto auto 1fr;
+            gap: 14px;
+            padding: 16px 18px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .panel-label {
+            font-size: 0.6rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--dim);
+            margin-bottom: 10px;
+        }
+
+        .drop-zone {
+            grid-column: 1 / 3;
+            border: 2px dashed var(--border);
+            border-radius: 6px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--accent);
+            background: #00ffaa08;
+        }
+
+        .drop-zone input { display: none; }
+        .drop-icon { font-size: 2.4rem; margin-bottom: 8px; opacity: 0.6; }
+        .drop-text { font-size: 0.75rem; color: var(--dim); letter-spacing: 2px; }
+        .drop-text strong { color: var(--accent); }
+
+        .spectrum-panel { grid-column: 1 / 2; }
+
+        #spectrumCanvas {
+            width: 100%;
+            height: 140px;
+            display: block;
+            border-radius: 3px;
+            background: #07070f;
+        }
+
+        .waveform-panel { grid-column: 1 / 2; }
+
+        .waveform-wrap {
+            position: relative;
+            height: 100px;
+            cursor: col-resize;
+            background: #07070f;
+            border-radius: 3px;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #waveCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .selection-overlay {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: #00ffaa22;
+            border-left: 2px solid var(--accent);
+            border-right: 2px solid var(--accent);
+            pointer-events: none;
+            display: none;
+        }
+
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--accent2);
+            pointer-events: none;
+            box-shadow: 0 0 8px var(--accent2);
+            display: none;
+        }
+
+        .time-display {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+            font-size: 0.65rem;
+            color: var(--dim);
+            flex-wrap: wrap;
+        }
+
+        .time-display span b { color: var(--accent); }
+
+        .transport {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 3px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn.primary {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 12px #00ffaa30;
+        }
+        .btn.primary:hover { background: #00ffaa18; }
+        .btn.danger { border-color: var(--accent2); color: var(--accent2); }
+        .btn.danger:hover { background: #ff336618; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn:disabled:hover {
+            border-color: var(--border);
+            color: var(--text);
+            background: transparent;
+        }
+
+        .effects-panel { grid-column: 2; grid-row: 2 / 5; }
+        .fx-section { margin-bottom: 22px; }
+
+        .fx-title {
+            font-size: 0.6rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent3);
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .fx-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .fx-name { font-size: 0.65rem; color: var(--dim); }
+        .fx-val { font-size: 0.65rem; color: var(--accent); min-width: 34px; text-align: right; }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            margin: 4px 0 10px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px #00ffaa80;
+            cursor: pointer;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .toggle-label { font-size: 0.65rem; color: var(--dim); }
+
+        .toggle {
+            width: 36px;
+            height: 18px;
+            background: var(--border);
+            border-radius: 9px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.on { background: var(--accent); }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+
+        .toggle.on::after { left: 20px; }
+
+        .clips-panel { grid-column: 1 / 2; }
+        .clips-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .clip-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #0d0d18;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 0.65rem;
+            animation: slideIn 0.25s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .clip-color {
+            width: 4px;
+            height: 36px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .clip-info { flex: 1; }
+        .clip-name { color: var(--text); margin-bottom: 2px; }
+        .clip-meta { color: var(--dim); font-size: 0.6rem; }
+
+        .clip-play-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--accent);
+            width: 28px;
+            height: 28px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .clip-play-btn:hover { border-color: var(--accent); background: #00ffaa15; }
+
+        .clip-dl {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--dim);
+            width: 28px;
+            height: 28px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .clip-dl:hover { border-color: var(--accent3); color: var(--accent3); }
+
+        .clip-del {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--dim);
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .clip-del:hover { color: var(--accent2); }
+
+        .empty-clips {
+            text-align: center;
+            color: var(--dim);
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            padding: 24px 0;
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        @media (max-width: 980px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+            .drop-zone { grid-column: 1; }
+            .spectrum-panel,
+            .waveform-panel,
+            .clips-panel,
+            .effects-panel {
+                grid-column: 1;
+                grid-row: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <div class="logo">KU<span>P</span>R</div>
+        <div class="tagline">Audio Forge · Real-time FX · Spectrum</div>
+    </div>
+    <div class="status-dot" id="statusDot"></div>
+</header>
+
+<main>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="audio/*">
+        <div class="drop-icon">🎵</div>
+        <div class="drop-text">Upuść plik audio lub <strong>kliknij</strong> aby wybrać</div>
+        <div class="drop-text" style="margin-top:6px; font-size:0.6rem;">MP3 · WAV · OGG · FLAC · M4A</div>
+    </div>
+
+    <div class="panel spectrum-panel" id="spectrumPanel" style="display:none">
+        <div class="panel-label">Widmo częstotliwości — FFT</div>
+        <canvas id="spectrumCanvas"></canvas>
+    </div>
+
+    <div class="panel waveform-panel" id="wavePanel" style="display:none">
+        <div class="panel-label">Przebieg falowy · <span style="color:var(--accent)">przeciągnij myszą</span> albo kliknij 2 razy aby zaznaczyć fragment</div>
+        <div class="waveform-wrap" id="waveWrap">
+            <canvas id="waveCanvas"></canvas>
+            <div class="selection-overlay" id="selOverlay"></div>
+            <div class="playhead" id="playhead"></div>
+        </div>
+        <div class="time-display">
+            <span>Zaznaczenie: <b id="selStart">—</b> → <b id="selEnd">—</b></span>
+            <span>Czas: <b id="curTime">0.00s</b></span>
+            <span>Plik: <b id="fileLen">—</b></span>
+        </div>
+        <div class="transport">
+            <button class="btn primary" id="btnPlay">▶ PLAY</button>
+            <button class="btn" id="btnStop">■ STOP</button>
+            <button class="btn" id="btnCut" disabled>✂ WYTNIJ FRAGMENT</button>
+            <button class="btn danger" id="btnClear">⊘ WYCZYŚĆ</button>
+        </div>
+    </div>
+
+    <div class="panel effects-panel" id="fxPanel" style="display:none">
+        <div class="panel-label">Efekty — Real-time</div>
+
+        <div class="fx-section">
+            <div class="fx-title">⚡ Kupr / Chorus</div>
+            <div class="toggle-row">
+                <span class="toggle-label">Włączony</span>
+                <div class="toggle on" id="toggleChorus"></div>
+            </div>
+            <div class="fx-row"><span class="fx-name">Głębokość</span><span class="fx-val" id="vDepth">0.60</span></div>
+            <input type="range" id="sDepth" min="0" max="1" step="0.01" value="0.6">
+
+            <div class="fx-row"><span class="fx-name">Szybkość (Hz)</span><span class="fx-val" id="vRate">2.5</span></div>
+            <input type="range" id="sRate" min="0.1" max="8" step="0.1" value="2.5">
+
+            <div class="fx-row"><span class="fx-name">Opóźnienie (ms)</span><span class="fx-val" id="vDelay">25</span></div>
+            <input type="range" id="sDelay" min="1" max="50" step="1" value="25">
+
+            <div class="fx-row"><span class="fx-name">Mix (Wet)</span><span class="fx-val" id="vMix">0.50</span></div>
+            <input type="range" id="sMix" min="0" max="1" step="0.01" value="0.5">
+        </div>
+
+        <div class="fx-section">
+            <div class="fx-title">🌊 Pogłos (Reverb)</div>
+            <div class="toggle-row">
+                <span class="toggle-label">Włączony</span>
+                <div class="toggle" id="toggleReverb"></div>
+            </div>
+            <div class="fx-row"><span class="fx-name">Czas (s)</span><span class="fx-val" id="vRevTime">1.5</span></div>
+            <input type="range" id="sRevTime" min="0.1" max="6" step="0.1" value="1.5">
+
+            <div class="fx-row"><span class="fx-name">Mix</span><span class="fx-val" id="vRevMix">0.30</span></div>
+            <input type="range" id="sRevMix" min="0" max="1" step="0.01" value="0.3">
+        </div>
+
+        <div class="fx-section">
+            <div class="fx-title">🎚 Equalizer</div>
+            <div class="fx-row"><span class="fx-name">Basy (dB)</span><span class="fx-val" id="vBass">0.0</span></div>
+            <input type="range" id="sBass" min="-12" max="12" step="0.5" value="0">
+
+            <div class="fx-row"><span class="fx-name">Środek (dB)</span><span class="fx-val" id="vMid">0.0</span></div>
+            <input type="range" id="sMid" min="-12" max="12" step="0.5" value="0">
+
+            <div class="fx-row"><span class="fx-name">Wysokie (dB)</span><span class="fx-val" id="vTreb">0.0</span></div>
+            <input type="range" id="sTreb" min="-12" max="12" step="0.5" value="0">
+        </div>
+
+        <div class="fx-section">
+            <div class="fx-title">🔊 Głośność</div>
+            <div class="fx-row"><span class="fx-name">Gain</span><span class="fx-val" id="vGain">1.0</span></div>
+            <input type="range" id="sGain" min="0" max="3" step="0.05" value="1">
+        </div>
+    </div>
+
+    <div class="panel clips-panel" id="clipsPanel" style="display:none">
+        <div class="panel-label">Wycięte fragmenty</div>
+        <div class="clips-list" id="clipsList">
+            <div class="empty-clips">Zaznacz fragment i kliknij ✂ WYTNIJ</div>
+        </div>
+    </div>
+</main>
+
+<script>
+let audioCtx = null;
+let audioBuffer = null;
+let source = null;
+let analyser = null;
+let gainNode = null;
+let bassFilter = null, midFilter = null, trebFilter = null;
+let chorusNodes = null;
+
+let isPlaying = false;
+let startedAt = 0;
+let pausedAt = 0;
+
+let selStartSec = null;
+let selEndSec = null;
+
+let isDragging = false;
+let dragStartX = 0;
+let dragMoved = false;
+let suppressNextClick = false;
+let clickSelectStart = null;
+
+let playheadFrame = null;
+let spectrumFrame = null;
+
+let clips = [];
+let clipColors = ['#00ffaa','#ff3366','#7b5ea7','#ffcc00','#00bfff','#ff7700'];
+let colorIdx = 0;
+let fileName = 'audio';
+
+let chorusOn = true;
+let reverbOn = false;
+
+const MIN_SELECTION_SEC = 0.05;
+
+const dropZone = document.getElementById('dropZone');
+const waveWrap = document.getElementById('waveWrap');
+const selOverlay = document.getElementById('selOverlay');
+const playhead = document.getElementById('playhead');
+const btnCut = document.getElementById('btnCut');
+const btnPlay = document.getElementById('btnPlay');
+const btnStop = document.getElementById('btnStop');
+const btnClear = document.getElementById('btnClear');
+
+async function initCtx() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+});
+
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+async function loadFile(file) {
+    await initCtx();
+    stopPlayback();
+
+    fileName = file.name.replace(/\.[^.]+$/, '');
+
+    const reader = new FileReader();
+    reader.onload = async ev => {
+        try {
+            audioBuffer = await audioCtx.decodeAudioData(ev.target.result);
+
+            selStartSec = null;
+            selEndSec = null;
+            clickSelectStart = null;
+            isDragging = false;
+            dragMoved = false;
+            suppressNextClick = false;
+
+            showPanels();
+            resizeSpectrum();
+            setTimeout(drawWaveform, 50);
+
+            document.getElementById('fileLen').textContent = fmt(audioBuffer.duration);
+            document.getElementById('statusDot').classList.add('active');
+            btnCut.disabled = true;
+            selOverlay.style.display = 'none';
+            updateSelLabels();
+        } catch (e) {
+            alert('Nie można zdekodować pliku audio: ' + e.message);
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function showPanels() {
+    ['spectrumPanel', 'wavePanel', 'fxPanel', 'clipsPanel'].forEach(id => {
+        document.getElementById(id).style.display = '';
+    });
+    document.getElementById('dropZone').style.display = 'none';
+}
+
+function cleanupSource() {
+    if (source) {
+        try { source.stop(0); } catch (e) {}
+        try { source.disconnect(); } catch (e) {}
+        source = null;
+    }
+    if (chorusNodes && chorusNodes.lfo) {
+        try { chorusNodes.lfo.stop(0); } catch (e) {}
+    }
+    chorusNodes = null;
+}
+
+function buildGraph(buffer) {
+    cleanupSource();
+
+    source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.8;
+
+    bassFilter = audioCtx.createBiquadFilter();
+    bassFilter.type = 'lowshelf';
+    bassFilter.frequency.value = 200;
+    bassFilter.gain.value = parseFloat(document.getElementById('sBass').value);
+
+    midFilter = audioCtx.createBiquadFilter();
+    midFilter.type = 'peaking';
+    midFilter.frequency.value = 1000;
+    midFilter.Q.value = 1;
+    midFilter.gain.value = parseFloat(document.getElementById('sMid').value);
+
+    trebFilter = audioCtx.createBiquadFilter();
+    trebFilter.type = 'highshelf';
+    trebFilter.frequency.value = 5000;
+    trebFilter.gain.value = parseFloat(document.getElementById('sTreb').value);
+
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = parseFloat(document.getElementById('sGain').value);
+
+    source.connect(bassFilter);
+    bassFilter.connect(midFilter);
+    midFilter.connect(trebFilter);
+    trebFilter.connect(gainNode);
+
+    let last = gainNode;
+
+    if (chorusOn) {
+        const dry = audioCtx.createGain();
+        const wet = audioCtx.createGain();
+        const mix = parseFloat(document.getElementById('sMix').value);
+        dry.gain.value = 1 - mix;
+        wet.gain.value = mix;
+
+        const delay1 = audioCtx.createDelay(0.1);
+        const delay2 = audioCtx.createDelay(0.1);
+        const delayMs = parseFloat(document.getElementById('sDelay').value) / 1000;
+
+        delay1.delayTime.value = delayMs;
+        delay2.delayTime.value = delayMs * 0.9;
+
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = parseFloat(document.getElementById('sRate').value);
+
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = parseFloat(document.getElementById('sDepth').value) * 0.005;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(delay1.delayTime);
+        lfoGain.connect(delay2.delayTime);
+        lfo.start();
+
+        const chorusMix = audioCtx.createGain();
+
+        last.connect(dry);
+        last.connect(delay1);
+        last.connect(delay2);
+        delay1.connect(wet);
+        delay2.connect(wet);
+        dry.connect(chorusMix);
+        wet.connect(chorusMix);
+
+        chorusNodes = { lfo, delay1, delay2 };
+        last = chorusMix;
+    }
+
+    if (reverbOn) {
+        const convolver = audioCtx.createConvolver();
+        convolver.buffer = makeImpulse(parseFloat(document.getElementById('sRevTime').value));
+
+        const revWet = audioCtx.createGain();
+        const revDry = audioCtx.createGain();
+        const revMix = parseFloat(document.getElementById('sRevMix').value);
+
+        revWet.gain.value = revMix;
+        revDry.gain.value = 1 - revMix;
+
+        const revOut = audioCtx.createGain();
+
+        last.connect(revDry);
+        last.connect(convolver);
+        convolver.connect(revWet);
+        revDry.connect(revOut);
+        revWet.connect(revOut);
+        last = revOut;
+    }
+
+    last.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    return source;
+}
+
+function makeImpulse(duration) {
+    const sr = audioCtx.sampleRate;
+    const len = Math.max(1, Math.floor(sr * duration));
+    const buf = audioCtx.createBuffer(2, len, sr);
+
+    for (let ch = 0; ch < 2; ch++) {
+        const d = buf.getChannelData(ch);
+        for (let i = 0; i < len; i++) {
+            d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+        }
+    }
+    return buf;
+}
+
+btnPlay.addEventListener('click', async () => {
+    if (!audioBuffer) return;
+
+    await audioCtx.resume();
+
+    if (isPlaying) {
+        stopPlayback();
+        return;
+    }
+
+    const src = buildGraph(audioBuffer);
+    const offset = pausedAt;
+
+    src.start(0, offset);
+    src.onended = () => {
+        if (isPlaying) {
+            isPlaying = false;
+            pausedAt = 0;
+            updatePlayBtn();
+            cancelAnimationFrame(playheadFrame);
+            cancelAnimationFrame(spectrumFrame);
+            playhead.style.display = 'none';
+        }
+    };
+
+    source = src;
+    startedAt = audioCtx.currentTime - offset;
+    isPlaying = true;
+    pausedAt = 0;
+
+    updatePlayBtn();
+    drawPlayhead();
+    drawSpectrum();
+});
+
+btnStop.addEventListener('click', () => {
+    stopPlayback();
+    pausedAt = 0;
+    document.getElementById('curTime').textContent = '0.00s';
+});
+
+function stopPlayback() {
+    if (isPlaying && audioCtx) {
+        pausedAt = Math.max(0, Math.min(audioBuffer ? audioBuffer.duration : 0, audioCtx.currentTime - startedAt));
+    }
+
+    cleanupSource();
+    isPlaying = false;
+
+    cancelAnimationFrame(playheadFrame);
+    cancelAnimationFrame(spectrumFrame);
+
+    playhead.style.display = 'none';
+    updatePlayBtn();
+}
+
+function updatePlayBtn() {
+    btnPlay.textContent = isPlaying ? '⏸ PAUSE' : '▶ PLAY';
+}
+
+function currentTime() {
+    if (!audioBuffer) return 0;
+    return isPlaying ? (audioCtx.currentTime - startedAt) : pausedAt;
+}
+
+function drawWaveform() {
+    const canvas = document.getElementById('waveCanvas');
+    const wrap = document.getElementById('waveWrap');
+
+    const logicalW = wrap.clientWidth || wrap.offsetWidth || 600;
+    const logicalH = wrap.clientHeight || wrap.offsetHeight || 100;
+
+    canvas.width = logicalW * window.devicePixelRatio;
+    canvas.height = logicalH * window.devicePixelRatio;
+    canvas.style.width = logicalW + 'px';
+    canvas.style.height = logicalH + 'px';
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    ctx.clearRect(0, 0, W, H);
+
+    if (!audioBuffer) return;
+
+    const data = audioBuffer.getChannelData(0);
+    const step = Math.max(1, Math.ceil(data.length / W));
+    const mid = H / 2;
+
+    ctx.strokeStyle = '#1e1e35';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(W, mid);
+    ctx.stroke();
+
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#00ffaa');
+    grad.addColorStop(0.5, '#7b5ea7');
+    grad.addColorStop(1, '#ff3366');
+    ctx.fillStyle = grad;
+
+    for (let i = 0; i < W; i++) {
+        let min = 1;
+        let max = -1;
+
+        for (let j = 0; j < step; j++) {
+            const idx = i * step + j;
+            const v = idx < data.length ? data[idx] : 0;
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+
+        const y1 = mid + min * mid * 0.92;
+        const y2 = mid + max * mid * 0.92;
+        ctx.fillRect(i, y1, 1, Math.max(y2 - y1, 1));
+    }
+
+    updateSelOverlay();
+}
+
+function clientXToFrac(clientX) {
+    const r = waveWrap.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+}
+
+waveWrap.addEventListener('mousedown', e => {
+    if (!audioBuffer) return;
+    e.preventDefault();
+
+    isDragging = true;
+    dragMoved = false;
+    dragStartX = clientXToFrac(e.clientX);
+    selStartSec = dragStartX * audioBuffer.duration;
+    selEndSec = selStartSec;
+
+    btnCut.disabled = true;
+    selOverlay.style.display = 'none';
+    updateSelLabels();
+});
+
+function handleMove(clientX) {
+    if (!isDragging || !audioBuffer) return;
+
+    const frac = clientXToFrac(clientX);
+    const t = frac * audioBuffer.duration;
+    const anchor = dragStartX * audioBuffer.duration;
+
+    if (Math.abs(frac - dragStartX) > 0.002) {
+        dragMoved = true;
+    }
+
+    selStartSec = Math.min(anchor, t);
+    selEndSec = Math.max(anchor, t);
+
+    updateSelOverlay();
+    updateSelLabels();
+}
+
+function handleEnd(clientX) {
+    if (!isDragging || !audioBuffer) return;
+
+    isDragging = false;
+
+    const frac = clientXToFrac(clientX);
+    const t = frac * audioBuffer.duration;
+    const anchor = dragStartX * audioBuffer.duration;
+
+    selStartSec = Math.min(anchor, t);
+    selEndSec = Math.max(anchor, t);
+
+    if (dragMoved && Math.abs(selEndSec - selStartSec) >= MIN_SELECTION_SEC) {
+        updateSelOverlay();
+        btnCut.disabled = false;
+        clickSelectStart = null;
+        suppressNextClick = true;
+    } else {
+        selStartSec = null;
+        selEndSec = null;
+        selOverlay.style.display = 'none';
+        btnCut.disabled = true;
+        updateSelLabels();
+
+        if (dragMoved) {
+            suppressNextClick = true;
+        }
+    }
+
+    updateSelLabels();
+}
+
+window.addEventListener('mousemove', e => handleMove(e.clientX));
+window.addEventListener('mouseup', e => handleEnd(e.clientX));
+
+waveWrap.addEventListener('click', e => {
+    if (!audioBuffer) return;
+
+    if (suppressNextClick) {
+        suppressNextClick = false;
+        return;
+    }
+
+    if (isDragging) return;
+
+    const frac = clientXToFrac(e.clientX);
+    const t = frac * audioBuffer.duration;
+
+    if (clickSelectStart === null) {
+        clickSelectStart = t;
+        selStartSec = t;
+        selEndSec = t;
+        selOverlay.style.display = 'none';
+        btnCut.disabled = true;
+        updateSelLabels();
+        return;
+    }
+
+    selStartSec = Math.min(clickSelectStart, t);
+    selEndSec = Math.max(clickSelectStart, t);
+    clickSelectStart = null;
+
+    if (Math.abs(selEndSec - selStartSec) < MIN_SELECTION_SEC) {
+        selStartSec = null;
+        selEndSec = null;
+        selOverlay.style.display = 'none';
+        btnCut.disabled = true;
+    } else {
+        updateSelOverlay();
+        btnCut.disabled = false;
+    }
+
+    updateSelLabels();
+});
+
+waveWrap.addEventListener('touchstart', e => {
+    if (!audioBuffer) return;
+    e.preventDefault();
+
+    isDragging = true;
+    dragMoved = false;
+    dragStartX = clientXToFrac(e.touches[0].clientX);
+    selStartSec = dragStartX * audioBuffer.duration;
+    selEndSec = selStartSec;
+
+    btnCut.disabled = true;
+    selOverlay.style.display = 'none';
+    updateSelLabels();
+}, { passive: false });
+
+window.addEventListener('touchmove', e => {
+    if (!isDragging) return;
+    e.preventDefault();
+    handleMove(e.touches[0].clientX);
+}, { passive: false });
+
+window.addEventListener('touchend', e => {
+    if (!isDragging) return;
+    const lastX = e.changedTouches[0].clientX;
+    handleEnd(lastX);
+}, { passive: false });
+
+function updateSelOverlay() {
+    if (selStartSec === null || selEndSec === null || !audioBuffer) return;
+
+    const dur = audioBuffer.duration;
+    const s = (selStartSec / dur) * 100;
+    const w = ((selEndSec - selStartSec) / dur) * 100;
+
+    selOverlay.style.left = s + '%';
+    selOverlay.style.width = w + '%';
+    selOverlay.style.display = 'block';
+}
+
+function updateSelLabels() {
+    document.getElementById('selStart').textContent = selStartSec !== null ? fmt(selStartSec) : '—';
+    document.getElementById('selEnd').textContent = selEndSec !== null ? fmt(selEndSec) : '—';
+}
+
+function drawPlayhead() {
+    if (!isPlaying || !audioBuffer) return;
+
+    const t = currentTime();
+    const pct = Math.min(t / audioBuffer.duration, 1);
+
+    playhead.style.display = 'block';
+    playhead.style.left = (pct * 100) + '%';
+    document.getElementById('curTime').textContent = fmt(t);
+
+    playheadFrame = requestAnimationFrame(drawPlayhead);
+}
+
+function resizeSpectrum() {
+    const c = document.getElementById('spectrumCanvas');
+    const p = c.parentElement;
+    if (!p) return;
+
+    c.width = (p.clientWidth || 600) * window.devicePixelRatio;
+    c.height = 140 * window.devicePixelRatio;
+    c.style.width = (p.clientWidth || 600) + 'px';
+    c.style.height = '140px';
+}
+
+function drawSpectrum() {
+    if (!isPlaying || !analyser) return;
+
+    const canvas = document.getElementById('spectrumCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const bufLen = analyser.frequencyBinCount;
+    const data = new Uint8Array(bufLen);
+    analyser.getByteFrequencyData(data);
+
+    ctx.fillStyle = '#07070f';
+    ctx.fillRect(0, 0, W, H);
+
+    const barW = W / bufLen * 2.5;
+    const grad = ctx.createLinearGradient(0, H, 0, 0);
+    grad.addColorStop(0, '#00ffaa');
+    grad.addColorStop(0.6, '#7b5ea7');
+    grad.addColorStop(1, '#ff3366');
+
+    for (let i = 0; i < bufLen; i++) {
+        const v = data[i] / 255;
+        const bh = v * H;
+        const x = i * (barW + 1);
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, H - bh, barW, bh);
+
+        ctx.fillStyle = '#ffffff30';
+        ctx.fillRect(x, H - bh - 2, barW, 2);
+    }
+
+    ctx.strokeStyle = '#1e1e3044';
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(f => {
+        ctx.beginPath();
+        ctx.moveTo(0, H * f);
+        ctx.lineTo(W, H * f);
+        ctx.stroke();
+    });
+
+    spectrumFrame = requestAnimationFrame(drawSpectrum);
+}
+
+document.getElementById('btnCut').addEventListener('click', async () => {
+    if (!audioBuffer || selStartSec === null || selEndSec === null) return;
+
+    const s = Math.floor(selStartSec * audioBuffer.sampleRate);
+    const e2 = Math.floor(selEndSec * audioBuffer.sampleRate);
+    const len = e2 - s;
+
+    if (len <= 0) return;
+
+    const ch = audioBuffer.numberOfChannels;
+    const clipBuf = audioCtx.createBuffer(ch, len, audioBuffer.sampleRate);
+
+    for (let c = 0; c < ch; c++) {
+        clipBuf.getChannelData(c).set(audioBuffer.getChannelData(c).subarray(s, e2));
+    }
+
+    const offCtx = new OfflineAudioContext(ch, len, audioBuffer.sampleRate);
+    const src = offCtx.createBufferSource();
+    src.buffer = clipBuf;
+
+    let last = src;
+
+    const bf = offCtx.createBiquadFilter();
+    bf.type = 'lowshelf';
+    bf.frequency.value = 200;
+    bf.gain.value = parseFloat(document.getElementById('sBass').value);
+
+    const mf = offCtx.createBiquadFilter();
+    mf.type = 'peaking';
+    mf.frequency.value = 1000;
+    mf.Q.value = 1;
+    mf.gain.value = parseFloat(document.getElementById('sMid').value);
+
+    const tf = offCtx.createBiquadFilter();
+    tf.type = 'highshelf';
+    tf.frequency.value = 5000;
+    tf.gain.value = parseFloat(document.getElementById('sTreb').value);
+
+    const gn = offCtx.createGain();
+    gn.gain.value = parseFloat(document.getElementById('sGain').value);
+
+    last.connect(bf);
+    bf.connect(mf);
+    mf.connect(tf);
+    tf.connect(gn);
+    last = gn;
+
+    if (chorusOn) {
+        const dry = offCtx.createGain();
+        const wet = offCtx.createGain();
+        const mix = parseFloat(document.getElementById('sMix').value);
+
+        dry.gain.value = 1 - mix;
+        wet.gain.value = mix;
+
+        const d1 = offCtx.createDelay(0.1);
+        const d2 = offCtx.createDelay(0.1);
+        d1.delayTime.value = parseFloat(document.getElementById('sDelay').value) / 1000;
+        d2.delayTime.value = d1.delayTime.value * 0.9;
+
+        const lfo = offCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = parseFloat(document.getElementById('sRate').value);
+
+        const lg = offCtx.createGain();
+        lg.gain.value = parseFloat(document.getElementById('sDepth').value) * 0.005;
+
+        lfo.connect(lg);
+        lg.connect(d1.delayTime);
+        lg.connect(d2.delayTime);
+        lfo.start();
+
+        const mix2 = offCtx.createGain();
+
+        last.connect(dry);
+        last.connect(d1);
+        last.connect(d2);
+        d1.connect(wet);
+        d2.connect(wet);
+        dry.connect(mix2);
+        wet.connect(mix2);
+        last = mix2;
+    }
+
+    if (reverbOn) {
+        const conv = offCtx.createConvolver();
+        conv.buffer = makeImpulseOff(offCtx, parseFloat(document.getElementById('sRevTime').value));
+
+        const rw = offCtx.createGain();
+        const rd = offCtx.createGain();
+        const ro = offCtx.createGain();
+        const rm = parseFloat(document.getElementById('sRevMix').value);
+
+        rw.gain.value = rm;
+        rd.gain.value = 1 - rm;
+
+        last.connect(rd);
+        last.connect(conv);
+        conv.connect(rw);
+        rd.connect(ro);
+        rw.connect(ro);
+        last = ro;
+    }
+
+    last.connect(offCtx.destination);
+    src.start();
+
+    const rendered = await offCtx.startRendering();
+
+    const wav = encodeWAV(rendered);
+    const blob = new Blob([wav], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+
+    const color = clipColors[colorIdx % clipColors.length];
+    colorIdx++;
+
+    const clip = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        name: `${fileName}_${fmt(selStartSec).replace(':','m')}–${fmt(selEndSec).replace(':','m')}s`,
+        duration: selEndSec - selStartSec,
+        url,
+        color,
+        buffer: rendered,
+        playingSource: null
+    };
+
+    clips.push(clip);
+    renderClips();
+});
+
+function makeImpulseOff(ctx, duration) {
+    const sr = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(sr * duration));
+    const buf = ctx.createBuffer(2, len, sr);
+
+    for (let c = 0; c < 2; c++) {
+        const d = buf.getChannelData(c);
+        for (let i = 0; i < len; i++) {
+            d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+        }
+    }
+    return buf;
+}
+
+function encodeWAV(buffer) {
+    const numCh = buffer.numberOfChannels;
+    const sr = buffer.sampleRate;
+    const samples = buffer.length;
+
+    const ab = new ArrayBuffer(44 + samples * numCh * 2);
+    const view = new DataView(ab);
+
+    const writeStr = (off, s) => {
+        for (let i = 0; i < s.length; i++) {
+            view.setUint8(off + i, s.charCodeAt(i));
+        }
+    };
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + samples * numCh * 2, true);
+    writeStr(8, 'WAVE');
+
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sr, true);
+    view.setUint32(28, sr * numCh * 2, true);
+    view.setUint16(32, numCh * 2, true);
+    view.setUint16(34, 16, true);
+
+    writeStr(36, 'data');
+    view.setUint32(40, samples * numCh * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples; i++) {
+        for (let c = 0; c < numCh; c++) {
+            const s = Math.max(-1, Math.min(1, buffer.getChannelData(c)[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            offset += 2;
+        }
+    }
+
+    return ab;
+}
+
+function renderClips() {
+    const list = document.getElementById('clipsList');
+
+    if (!clips.length) {
+        list.innerHTML = '<div class="empty-clips">Zaznacz fragment i kliknij ✂ WYTNIJ</div>';
+        return;
+    }
+
+    list.innerHTML = '';
+
+    clips.forEach(clip => {
+        const div = document.createElement('div');
+        div.className = 'clip-item';
+        div.innerHTML = `
+            <div class="clip-color" style="background:${clip.color}"></div>
+            <div class="clip-info">
+                <div class="clip-name">${clip.name}</div>
+                <div class="clip-meta">${fmt(clip.duration)} · WAV · kupr ${chorusOn ? 'ON' : 'OFF'}</div>
+            </div>
+            <button class="clip-play-btn" data-id="${clip.id}">▶</button>
+            <a class="clip-dl" href="${clip.url}" download="${clip.name}.wav" title="Pobierz">↓</a>
+            <button class="clip-del" data-id="${clip.id}" title="Usuń">✕</button>
+        `;
+        list.appendChild(div);
+    });
+
+    list.querySelectorAll('.clip-play-btn').forEach(btn => {
+        btn.addEventListener('click', () => playClip(parseInt(btn.dataset.id, 10), btn));
+    });
+
+    list.querySelectorAll('.clip-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+            clips = clips.filter(c => c.id !== parseInt(btn.dataset.id, 10));
+            renderClips();
+        });
+    });
+}
+
+async function playClip(id, btn) {
+    const clip = clips.find(c => c.id === id);
+    if (!clip) return;
+
+    await initCtx();
+    await audioCtx.resume();
+
+    if (clip.playingSource) {
+        try { clip.playingSource.stop(); } catch (e) {}
+        clip.playingSource = null;
+        btn.textContent = '▶';
+        return;
+    }
+
+    const src = buildGraph(clip.buffer);
+    src.start();
+
+    src.onended = () => {
+        clip.playingSource = null;
+        btn.textContent = '▶';
+    };
+
+    clip.playingSource = src;
+    btn.textContent = '■';
+}
+
+btnClear.addEventListener('click', () => {
+    stopPlayback();
+
+    selStartSec = null;
+    selEndSec = null;
+    clickSelectStart = null;
+    isDragging = false;
+    dragMoved = false;
+    suppressNextClick = false;
+
+    selOverlay.style.display = 'none';
+    btnCut.disabled = true;
+    updateSelLabels();
+});
+
+document.getElementById('toggleChorus').addEventListener('click', function () {
+    chorusOn = !chorusOn;
+    this.classList.toggle('on', chorusOn);
+});
+
+document.getElementById('toggleReverb').addEventListener('click', function () {
+    reverbOn = !reverbOn;
+    this.classList.toggle('on', reverbOn);
+});
+
+function bindSlider(id, valId, decimals = 2) {
+    const sl = document.getElementById(id);
+    const vl = document.getElementById(valId);
+
+    sl.addEventListener('input', () => {
+        vl.textContent = parseFloat(sl.value).toFixed(decimals);
+    });
+}
+
+bindSlider('sDepth', 'vDepth');
+bindSlider('sRate', 'vRate', 1);
+bindSlider('sDelay', 'vDelay', 0);
+bindSlider('sMix', 'vMix');
+bindSlider('sRevTime', 'vRevTime', 1);
+bindSlider('sRevMix', 'vRevMix');
+bindSlider('sBass', 'vBass', 1);
+bindSlider('sMid', 'vMid', 1);
+bindSlider('sTreb', 'vTreb', 1);
+bindSlider('sGain', 'vGain', 1);
+
+function fmt(s) {
+    if (!s && s !== 0) return '—';
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toFixed(2).padStart(5, '0');
+    return m > 0 ? `${m}m${sec}s` : `${sec}s`;
+}
+
+window.addEventListener('resize', () => {
+    if (audioBuffer) drawWaveform();
+    resizeSpectrum();
+});
+</script>
+
+</body>
+</html>
